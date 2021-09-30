@@ -23,10 +23,13 @@ func NewCmdRoot() *cobra.Command {
 	flags.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.watch.yaml)")
 	flags.String("startTag", "${{", "environment variable start tag")
 	flags.String("endTag", "}}", "environment variable end tag")
+	flags.String("logLevel", "debug", "output log level")
 	_ = viper.BindPFlag("startTag", flags.Lookup("startTag"))
 	_ = viper.BindPFlag("endTag", flags.Lookup("endTag"))
+	_ = viper.BindPFlag("logLevel", flags.Lookup("logLevel"))
 	cmd.AddCommand(NewCmdRun())
 	cmd.AddCommand(NewCmdMerge())
+	cmd.AddCommand(NewCmdVersion())
 	return cmd
 }
 

@@ -12,6 +12,26 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+var (
+	jsonMarshal = &json{}
+	yamlMarshal = &yaml{}
+)
+
+func GetMarshal(filename string) (Marshaler, error) {
+	ext := filepath.Ext(filename)
+	if len(ext) > 1 {
+		ext = ext[1:]
+	}
+	switch ext {
+	case "json":
+		return jsonMarshal, nil
+	case "yaml":
+		return yamlMarshal, nil
+	default:
+		return nil, fmt.Errorf("no support file extension: %s", ext)
+	}
+}
+
 type Marshaler interface {
 	Unmarshal(buf []byte, value interface{}) error
 	Marshal(value interface{}) ([]byte, error)
@@ -52,29 +72,21 @@ func merge(marshaler Marshaler, filenames ...string) (map[string]interface{}, er
 	return resultValues, nil
 }
 
-func Merge(values *map[string]interface{}, filenames ...string) error {
+func Merge(filenames ...string) (map[string]interface{}, error) {
 	var (
 		startTag = viper.GetString("startTag")
 		endTag   = viper.GetString("endTag")
+		valueTyp = map[string]interface{}{}
 	)
 	for _, filename := range filenames {
-		var marshaler Marshaler
+		marshaler, err := GetMarshal(filename)
+		if err != nil {
+			return nil, err
+		}
 		var override map[string]interface{}
-		ext := filepath.Ext(filename)
-		if len(ext) > 1 {
-			ext = ext[1:]
-		}
-		switch ext {
-		case "json":
-			marshaler = &json{}
-		case "yaml":
-			marshaler = &yaml{}
-		default:
-			return fmt.Errorf("no support type: %s", ext)
-		}
 		bs, err := os.ReadFile(filename)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		bufferWrite := &bytes.Buffer{}
 		tpl := fasttemplate.New(string(bs), startTag, endTag)
@@ -83,18 +95,15 @@ func Merge(values *map[string]interface{}, filenames ...string) error {
 			return w.Write([]byte(v))
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := marshaler.Unmarshal(bufferWrite.Bytes(), &override); err != nil {
-			return err
+			return nil, err
 		}
-		if values == nil {
-			values = &override
-		} else {
-			if err := mergo.Map(values, override, mergo.WithSliceDeepCopy, mergo.WithAppendSlice); err != nil {
-				return err
-			}
+		if err := mergo.Map(&valueTyp, override, mergo.WithSliceDeepCopy, mergo.WithAppendSlice); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	delete(valueTyp, "aliases")
+	return valueTyp, nil
 }

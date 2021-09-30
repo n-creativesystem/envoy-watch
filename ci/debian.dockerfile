@@ -1,11 +1,5 @@
 FROM envoyproxy/envoy:v1.19-latest as envoy
 
-FROM golang:1.16 as build
-WORKDIR /src
-COPY . .
-RUN go mod download \
-    && go build -o bin/watch
-
 FROM debian
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,6 +10,7 @@ COPY ci/docker-entrypoint.sh /
 COPY ci/setting.yaml /etc/watch/
 COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 COPY --from=envoy /etc/envoy/envoy.yaml /etc/watch/envoy.yaml
+COPY envoy-watch /etc/watch/
 
 RUN apt-get update \
     && apt-get install --no-install-recommends  -y tzdata \
@@ -24,12 +19,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm  -rf /tmp/* /var/lib/apt/lists/*
 
-COPY --from=build /src/bin/watch /etc/watch/
-
-RUN chmod +x /etc/watch/watch \
-    && mv /etc/watch/watch /usr/local/bin/ \
+RUN chmod +x /etc/watch/envoy-watch \
+    && mv /etc/watch/envoy-watch /usr/local/bin/ \
     && chmod +x /docker-entrypoint.sh
 
 
 ENTRYPOINT [ "/docker-entrypoint.sh" ]
-CMD [ "watch", "watch", "-c", "/etc/watch/envoy.yaml", "-s", "/etc/watch/setting.yaml" ]
+CMD [ "envoy-watch", "watch", "-c", "/etc/watch/envoy.yaml", "-s", "/etc/watch/setting.yaml" ]

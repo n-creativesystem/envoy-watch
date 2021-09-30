@@ -13,6 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/n-creativesystem/envoy-watch/logger"
 	"github.com/n-creativesystem/envoy-watch/merge"
+	"github.com/n-creativesystem/envoy-watch/watcher"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -27,9 +28,19 @@ type settings struct {
 	Settings []setting `yaml:"settings"`
 }
 
+func (s *settings) run() error {
+	for _, setting := range s.Settings {
+		if err := mergeFile(setting.Output, setting.Files...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func watch(cmd *cobra.Command, args []string) error {
 	errBuffer := &bytes.Buffer{}
 	log := logrus.New()
+	log.SetLevel(logger.GetLogLevel())
 	log.SetOutput(errBuffer)
 	log.SetReportCaller(true)
 
@@ -47,55 +58,21 @@ func watch(cmd *cobra.Command, args []string) error {
 		log.Errorln(err)
 		return errors.New(errBuffer.String())
 	}
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
+
+	fw := watcher.New()
+	if err := s.run(); err != nil {
 		log.Errorln(err)
 		return errors.New(errBuffer.String())
 	}
-	defer watcher.Close()
 	for _, setting := range s.Settings {
-		if err := mergeFile(setting.Output, setting.Files...); err != nil {
-			log.Errorln(err)
-			return errors.New(errBuffer.String())
-		}
 		for _, f := range setting.Files {
-			err = watcher.Add(f)
-			if err != nil {
-				log.Errorln(err)
-				return errors.New(errBuffer.String())
-			}
-		}
-		go func() {
-			for {
-				select {
-				case event, ok := <-watcher.Events:
-					if !ok {
-						return
-					}
-					if event.Op == fsnotify.Remove {
-						watcher.Remove(event.Name)
-						watcher.Add(event.Name)
-						cmd.Printf("%s\n", event.String())
-						err := mergeFile(setting.Output, setting.Files...)
-						if err != nil {
-							logrus.Errorln(err)
-						}
-					}
-					if event.Op == fsnotify.Write {
-						cmd.Printf("%s\n", event.String())
-						err := mergeFile(setting.Output, setting.Files...)
-						if err != nil {
-							logrus.Errorln(err)
-						}
-					}
-				case err, ok := <-watcher.Errors:
-					if !ok {
-						return
-					}
-					logrus.Error(err)
+			fw.Add(f, func(in fsnotify.Event) {
+				logrus.Debugf("%s\n", in.String())
+				if err := s.run(); err != nil {
+					log.Errorln(err)
 				}
-			}
-		}()
+			})
+		}
 	}
 
 	execCmd, stdout, stderr, err := execEnvoy(envoyConfig, envoyArgs)
@@ -116,9 +93,8 @@ func watch(cmd *cobra.Command, args []string) error {
 }
 
 func mergeFile(outputFile string, filenames ...string) error {
-	var err error
-	var value map[string]interface{}
-	if err := merge.Merge(&value, filenames...); err != nil {
+	value, err := merge.Merge(filenames...)
+	if err != nil {
 		return err
 	}
 	ext := filepath.Ext(outputFile)
@@ -136,7 +112,12 @@ func mergeFile(outputFile string, filenames ...string) error {
 		return err
 	}
 
+	directory := filepath.Dir(outputFile)
+	if _, err := os.Stat(directory); err != nil {
+		_ = os.MkdirAll(directory, 0755)
+	}
 	tempName := fmt.Sprintf("%s.tmp", outputFile)
+	logrus.Debugf("create temporary file: %s", tempName)
 	if f, err := os.Create(tempName); err == nil {
 		defer f.Close()
 		_, err = f.Write(buf)
@@ -167,6 +148,7 @@ func NewCmdRun() *cobra.Command {
 		Short: "run application",
 		Long:  "run application",
 		Run: func(cmd *cobra.Command, args []string) {
+			logrus.SetLevel(logger.GetLogLevel())
 			if err := watch(cmd, args); err != nil {
 				cmd.PrintErr(err.Error())
 			}

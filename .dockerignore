@@ -1,6 +1,4 @@
 /.devcontainer
 /.vscode
-/bin
 /data
 /envoy
-ci/Dockerfile

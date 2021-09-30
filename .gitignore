@@ -17,4 +17,5 @@
 /setting.yaml
 data/
 envoy/
-bin/
+/bin
+/dist

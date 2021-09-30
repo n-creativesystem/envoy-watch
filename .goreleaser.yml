@@ -1,0 +1,73 @@
+project_name: envoy-watch
+before:
+  hooks:
+    - go mod tidy
+snapshot:
+  name_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - binary: envoy-watch
+    main: .
+    ldflags:
+      - -s -w 
+      - -X github.com/n-creativesystem/envoy-watch/version.Version={{.Version}}
+      - -X github.com/n-creativesystem/envoy-watch/version.Revision=${{.ShortCommit}}
+      - -extldflags
+      - -static
+    env:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    replacements:
+      darwin: darwin
+      windows: windows
+      linux: linux
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - CREDITS
+    format: binary
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+
+release:
+  prerelease: auto
+
+dockers:
+  - id: envoy-watch.alpine
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ncreativesystem/envoy-watch:{{ .Tag }}-alpine"
+      - "ncreativesystem/envoy-watch:v{{ .Major }}-alpine"
+      - "ncreativesystem/envoy-watch:v{{ .Major }}.{{ .Minor }}-alpine"
+      - "ncreativesystem/envoy-watch:latest-alpine"
+    dockerfile: ci/alpine.dockerfile
+    extra_files:
+      - ci/docker-entrypoint.sh
+      - ci/setting.yaml
+
+  - id: envoy-watch.debian
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ncreativesystem/envoy-watch:{{ .Tag }}-debian"
+      - "ncreativesystem/envoy-watch:v{{ .Major }}-debian"
+      - "ncreativesystem/envoy-watch:v{{ .Major }}.{{ .Minor }}-debian"
+      - "ncreativesystem/envoy-watch:latest-debian"
+    dockerfile: ci/debian.dockerfile
+    extra_files:
+      - ci/docker-entrypoint.sh
+      - ci/setting.yaml
