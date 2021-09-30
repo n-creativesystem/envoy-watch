@@ -34,7 +34,6 @@ archives:
         format: zip
     files:
       - LICENSE
-      - CREDITS
     format: binary
 checksum:
   name_template: 'checksums.txt'
