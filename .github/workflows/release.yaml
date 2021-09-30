@@ -3,14 +3,9 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
     tags:
       - 'v*'
-
-# Workflowsで使用する環境変数を定義
-env:
-  REPOSITORY_NAMESPACE: ncreativesystem
-  IMAGE_NAME: saml-proxy
 
 jobs:
   setup-build-publish:
