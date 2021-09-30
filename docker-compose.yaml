@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  envoy-config-dev:
+    build: .devcontainer
+    tty: true
+    container_name: envoy-config-dev
+    volumes:
+      - .:/src/:delegated
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.ssh:/root/.ssh
+      - ~/.gitconfig:/root/.gitconfig
+    environment:
+      TZ: Asia/Tokyo
+    networks:
+      - koshow-outhouse-net
+networks:
+  default:
+    name: bridge
+  koshow-outhouse-net:
+    name: koshow-outhouse-net
+    driver: bridge
+  envoy-net:
+    name: envoy-net
+    driver: bridge
