@@ -22,11 +22,6 @@ jobs:
         with:
           go-version: 1.16
 
-      - name: credits
-        run: |
-          go install github.com/Songmu/gocredits/cmd/gocredits@latest
-          gocredits . > CREDITS
-
       - name: Login to Docker hub
         uses: docker/login-action@v1
         with:
