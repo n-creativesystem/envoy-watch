@@ -104,6 +104,6 @@ func Merge(filenames ...string) (map[string]interface{}, error) {
 			return nil, err
 		}
 	}
-	delete(valueTyp, "aliases")
+	delete(valueTyp, "anchors")
 	return valueTyp, nil
 }
