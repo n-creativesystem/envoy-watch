@@ -12,13 +12,10 @@ services:
     environment:
       TZ: Asia/Tokyo
     networks:
-      - koshow-outhouse-net
+      - envoy-net
 networks:
   default:
     name: bridge
-  koshow-outhouse-net:
-    name: koshow-outhouse-net
-    driver: bridge
   envoy-net:
     name: envoy-net
     driver: bridge
